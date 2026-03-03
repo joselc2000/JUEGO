@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎡 PARQUE AVENTURA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Nunito', sans-serif;
+    overflow: hidden;
+  }
+
+  #gameWrapper {
+    position: relative;
+    width: 800px;
+    height: 500px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(255,200,50,0.3), 0 0 120px rgba(255,100,200,0.15);
+  }
+
+  canvas {
+    display: block;
+    width: 800px;
+    height: 500px;
+  }
+
+  /* SCREENS */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    text-align: center;
+    padding: 30px;
+  }
+
+  #startScreen {
+    background: linear-gradient(160deg, #1a0533 0%, #0d1f5c 50%, #0a2a1a 100%);
+  }
+
+  #pauseScreen {
+    background: rgba(5,5,30,0.92);
+    backdrop-filter: blur(8px);
+  }
+
+  #deathScreen {
+    background: linear-gradient(160deg, #2a0000 0%, #1a0010 100%);
+  }
+
+  #winScreen {
+    background: linear-gradient(160deg, #0a2200 0%, #001a2a 100%);
+  }
+
+  .screen h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 52px;
+    line-height: 1;
+    text-shadow: 0 4px 20px currentColor;
+  }
+
+  .screen h2 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 36px;
+  }
+
+  .screen p {
+    font-size: 16px;
+    color: #aac;
+    max-width: 500px;
+    line-height: 1.6;
+  }
+
+  .btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 22px;
+    padding: 14px 48px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 1px;
+  }
+
+  .btn:hover { transform: scale(1.07); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #ffcc00, #ff6600);
+    color: #1a0000;
+    box-shadow: 0 6px 24px rgba(255,150,0,0.5);
+  }
+
+  .btn-secondary {
+    background: linear-gradient(135deg, #44aaff, #aa44ff);
+    color: white;
+    box-shadow: 0 6px 24px rgba(100,100,255,0.4);
+  }
+
+  .title-rainbow {
+    background: linear-gradient(90deg, #ff6666, #ffaa00, #ffff00, #66ff66, #44aaff, #cc66ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .level-badge {
+    font-family: 'Fredoka One', cursive;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 16px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #ccc;
+  }
+
+  .stars { font-size: 32px; letter-spacing: 4px; }
+
+  .hidden { display: none !important; }
+
+  /* HUD */
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .hud-block {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 16px;
+    color: white;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  }
+
+  #energyBar {
+    width: 120px;
+    height: 14px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.2);
+    overflow: hidden;
+  }
+
+  #energyFill {
+    height: 100%;
+    border-radius: 7px;
+    transition: width 0.2s, background 0.3s;
+    background: linear-gradient(90deg, #44ff88, #00ffcc);
+  }
+
+  #levelIndicator {
+    font-family: 'Fredoka One', cursive;
+    font-size: 14px;
+    color: #ffdd55;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+  }
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-block">
+      ❤️
+      <span id="livesDisplay">3</span>
+      &nbsp;&nbsp;⭐
+      <span id="scoreDisplay">0</span>
+    </div>
+    <div id="levelIndicator">NIVEL 1</div>
+    <div class="hud-block">
+      ⚡
+      <div id="energyBar"><div id="energyFill" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="screen" id="startScreen">
+    <div class="stars">🎡 🎢 🎠</div>
+    <h1 class="title-rainbow">PARQUE AVENTURA</h1>
+    <p>¡Recorre 3 niveles del parque! Esquiva obstáculos, recoge combustible y llega a la meta. Usa ← → para moverte y ESPACIO para saltar.</p>
+    <button class="btn btn-primary" onclick="startGame()">¡JUGAR!</button>
+    <div class="level-badge">3 NIVELES · 3 VIDAS · FULL ACCIÓN</div>
+  </div>
+
+  <!-- PAUSE SCREEN -->
+  <div class="screen hidden" id="pauseScreen">
+    <h2 style="color:#ffdd55">⏸ PAUSA</h2>
+    <p>El parque te espera…</p>
+    <button class="btn btn-primary" onclick="resumeGame()">▶ CONTINUAR</button>
+    <button class="btn btn-secondary" onclick="goToStart()">🏠 INICIO</button>
+  </div>
+
+  <!-- DEATH SCREEN -->
+  <div class="screen hidden" id="deathScreen">
+    <h2 style="color:#ff4444">💀 ¡PERDISTE!</h2>
+    <p id="deathMsg">Se acabaron las vidas. ¡Inténtalo de nuevo!</p>
+    <button class="btn btn-primary" onclick="startGame()">🔄 REINTENTAR</button>
+    <button class="btn btn-secondary" onclick="goToStart()">🏠 INICIO</button>
+  </div>
+
+  <!-- WIN SCREEN -->
+  <div class="screen hidden" id="winScreen">
+    <div style="font-size:48px">🏆</div>
+    <h2 style="color:#ffdd55">¡COMPLETASTE EL PARQUE!</h2>
+    <p id="winMsg">¡Eres el campeón del parque!</p>
+    <div class="stars">⭐⭐⭐</div>
+    <button class="btn btn-primary" onclick="startGame()">🔄 JUGAR DE NUEVO</button>
+  </div>
+</div>
+
+<div style="margin-top:12px; text-align:center; color:#555; font-size:13px; font-family:Nunito,sans-serif;">
+  ← → Mover &nbsp;|&nbsp; ESPACIO Saltar &nbsp;|&nbsp; P Pausar
+</div>
+
+<script>
+// ─── ENGINE ─────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 500;
+
+let gameState = 'start'; // start | playing | paused | dead | win
+let animId = null;
+let lastTime = 0;
+
+// ─── GAME DATA ───────────────────────────────────────────────────────────────
+let level, lives, score, energy;
+let player, camera;
+let platforms, obstacles, powerups, goal;
+let particles = [];
+let bgScroll = 0;
+let levelComplete = false;
+let invincible = 0; // frames
+let speedBoost = 0;
+let shieldActive = false;
+let flashMsg = { text:'', timer:0, color:'#fff' };
+
+const GRAVITY = 0.55;
+const PLAYER_SPEED = 3.5;
+const JUMP_FORCE = -12;
+const LEVEL_LENGTH = 3000;
+const GROUND_Y = 420;
+
+// ─── INPUT ───────────────────────────────────────────────────────────────────
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyP' && gameState === 'playing') pauseGame();
+  else if (e.code === 'KeyP' && gameState === 'paused') resumeGame();
+  if (e.code === 'Space') e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ─── LEVEL CONFIGS ───────────────────────────────────────────────────────────
+const LEVEL_CONFIGS = [
+  {
+    name: 'Jardín de Flores 🌸',
+    bgColors: ['#87CEEB','#98FB98'],
+    groundColor: '#4a9c4a',
+    obstacle: 'rock',
+    obstacleName: 'Piedras',
+    tip: 'Salta sobre las piedras',
+    numObstacles: 6,
+    numPowerups: 4,
+  },
+  {
+    name: 'Zona de Juegos 🎠',
+    bgColors: ['#FFB6C1','#DDA0DD'],
+    groundColor: '#c060c0',
+    obstacle: 'pit',
+    obstacleName: 'Zanjas',
+    tip: '¡No caigas en los hoyos!',
+    numObstacles: 5,
+    numPowerups: 4,
+  },
+  {
+    name: 'La Gran Montaña Rusa 🎢',
+    bgColors: ['#191970','#4B0082'],
+    groundColor: '#333388',
+    obstacle: 'spike',
+    obstacleName: 'Pinchos',
+    tip: 'Esquiva los pinchos saltando',
+    numObstacles: 8,
+    numPowerups: 5,
+  }
+];
+
+// ─── INIT LEVEL ──────────────────────────────────────────────────────────────
+function initLevel(lvl) {
+  level = lvl;
+  levelComplete = false;
+  invincible = 0;
+  speedBoost = 0;
+  shieldActive = false;
+  particles = [];
+  bgScroll = 0;
+
+  const cfg = LEVEL_CONFIGS[lvl];
+
+  player = {
+    x: 80, y: GROUND_Y - 40,
+    w: 36, h: 40,
+    vx: 0, vy: 0,
+    onGround: false,
+    facing: 1,
+    frame: 0,
+    frameTimer: 0,
+  };
+
+  camera = { x: 0 };
+
+  // Platforms
+  platforms = [
+    // Ground spans full level
+    { x: 0, y: GROUND_Y, w: LEVEL_LENGTH + 200, h: 80, isGround: true }
+  ];
+
+  // Add floating platforms
+  const platPositions = [300,550,700,950,1150,1350,1600,1800,2000,2300,2600];
+  platPositions.forEach(px => {
+    platforms.push({
+      x: px + Math.random()*60-30,
+      y: GROUND_Y - 80 - Math.random()*60,
+      w: 90 + Math.random()*40,
+      h: 16,
+      isGround: false
+    });
+  });
+
+  // Obstacles
+  obstacles = [];
+  const cfg2 = LEVEL_CONFIGS[lvl];
+  for (let i = 0; i < cfg2.numObstacles; i++) {
+    const ox = 400 + i * Math.floor((LEVEL_LENGTH - 600) / cfg2.numObstacles) + Math.random()*80-40;
+    if (cfg2.obstacle === 'rock') {
+      obstacles.push({ type:'rock', x: ox, y: GROUND_Y - 32, w: 36, h: 32, alive: true });
+    } else if (cfg2.obstacle === 'pit') {
+      obstacles.push({ type:'pit', x: ox, y: GROUND_Y, w: 70, h: 80, alive: true });
+    } else if (cfg2.obstacle === 'spike') {
+      obstacles.push({ type:'spike', x: ox, y: GROUND_Y - 28, w: 30, h: 28, alive: true });
+    }
+  }
+
+  // Powerups
+  powerups = [];
+  for (let i = 0; i < cfg2.numPowerups; i++) {
+    const px2 = 250 + i * Math.floor((LEVEL_LENGTH - 400) / cfg2.numPowerups) + Math.random()*80-40;
+    const types = ['fuel','speed','shield'];
+    powerups.push({
+      type: types[i % 3],
+      x: px2,
+      y: GROUND_Y - 70 - Math.random()*60,
+      w: 28, h: 28,
+      alive: true,
+      bob: Math.random()*Math.PI*2
+    });
+  }
+
+  // Goal
+  goal = { x: LEVEL_LENGTH - 80, y: GROUND_Y - 80, w: 50, h: 80 };
+
+  showFlash('NIVEL ' + (lvl+1) + ': ' + cfg.name, '#ffdd55');
+}
+
+// ─── START/RESUME/PAUSE ──────────────────────────────────────────────────────
+function startGame() {
+  lives = 3;
+  score = 0;
+  energy = 100;
+  hideAllScreens();
+  document.getElementById('hud').classList.remove('hidden');
+  gameState = 'playing';
+  initLevel(0);
+  updateHUD();
+  if (animId) cancelAnimationFrame(animId);
+  lastTime = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
+function pauseGame() {
+  gameState = 'paused';
+  document.getElementById('pauseScreen').classList.remove('hidden');
+}
+
+function resumeGame() {
+  gameState = 'playing';
+  document.getElementById('pauseScreen').classList.add('hidden');
+  lastTime = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
+function goToStart() {
+  gameState = 'start';
+  if (animId) cancelAnimationFrame(animId);
+  hideAllScreens();
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+}
+
+function hideAllScreens() {
+  ['startScreen','pauseScreen','deathScreen','winScreen'].forEach(id =>
+    document.getElementById(id).classList.add('hidden'));
+}
+
+// ─── GAME LOOP ───────────────────────────────────────────────────────────────
+function loop(ts) {
+  if (gameState !== 'playing') return;
+  const dt = Math.min((ts - lastTime) / 16.67, 3);
+  lastTime = ts;
+  update(dt);
+  render();
+  animId = requestAnimationFrame(loop);
+}
+
+// ─── UPDATE ──────────────────────────────────────────────────────────────────
+function update(dt) {
+  if (levelComplete) return;
+
+  // Energy drain
+  energy -= 0.04 * dt;
+  if (energy <= 0) { energy = 0; loseLife('¡Sin combustible! 💨'); return; }
+
+  // Input
+  const spd = PLAYER_SPEED * (speedBoost > 0 ? 1.7 : 1);
+  if (keys['ArrowLeft'] || keys['KeyA']) {
+    player.vx = -spd;
+    player.facing = -1;
+  } else if (keys['ArrowRight'] || keys['KeyD']) {
+    player.vx = spd;
+    player.facing = 1;
+  } else {
+    player.vx *= 0.75;
+  }
+
+  if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.onGround) {
+    player.vy = JUMP_FORCE;
+    player.onGround = false;
+    spawnParticles(player.x + player.w/2, player.y + player.h, '#aaffaa', 5);
+  }
+
+  // Physics
+  player.vy += GRAVITY * dt;
+  player.x += player.vx * dt;
+  player.y += player.vy * dt;
+
+  // Clamp left
+  if (player.x < 0) player.x = 0;
+
+  // Platform collision
+  player.onGround = false;
+  platforms.forEach(p => {
+    if (p.type === 'pit') return;
+    if (
+      player.x + player.w > p.x &&
+      player.x < p.x + p.w &&
+      player.y + player.h > p.y &&
+      player.y + player.h < p.y + p.h + 20 &&
+      player.vy >= 0
+    ) {
+      player.y = p.y - player.h;
+      player.vy = 0;
+      player.onGround = true;
+    }
+  });
+
+  // Fall into void
+  if (player.y > H + 100) { loseLife('¡Caíste al vacío! 💀'); return; }
+
+  // Obstacle collision
+  if (invincible <= 0) {
+    obstacles.forEach(o => {
+      if (!o.alive) return;
+      if (o.type === 'pit') {
+        // Fall in pit
+        if (
+          player.x + player.w > o.x + 8 &&
+          player.x < o.x + o.w - 8 &&
+          player.y + player.h >= o.y &&
+          player.onGround
+        ) {
+          if (!shieldActive) loseLife('¡Caíste en la zanja! 🕳️');
+          else { shieldActive = false; invincible = 120; showFlash('¡Escudo roto!','#44aaff'); }
+        }
+      } else {
+        if (rectsOverlap(player, o)) {
+          if (!shieldActive) { loseLife('¡Golpeado por ' + o.type + '! 💥'); }
+          else { shieldActive = false; invincible = 120; showFlash('¡Escudo absorbió el golpe!','#44aaff'); }
+        }
+      }
+    });
+  } else {
+    invincible -= dt;
+  }
+
+  // Powerup collection
+  powerups.forEach(p => {
+    if (!p.alive) return;
+    p.bob += 0.06 * dt;
+    if (rectsOverlap(player, { x: p.x, y: p.y + Math.sin(p.bob)*6, w: p.w, h: p.h })) {
+      p.alive = false;
+      collectPowerup(p.type);
+    }
+  });
+
+  // Goal collision
+  if (rectsOverlap(player, goal)) {
+    score += 500;
+    levelComplete = true;
+    spawnParticles(goal.x + 25, goal.y + 40, '#ffdd55', 25);
+    if (level < 2) {
+      setTimeout(() => {
+        energy = Math.min(100, energy + 40);
+        initLevel(level + 1);
+        updateHUD();
+      }, 1200);
+    } else {
+      setTimeout(() => {
+        gameState = 'win';
+        document.getElementById('winMsg').textContent =
+          '¡Puntuación final: ' + score + '! ¡Eres el rey del parque!';
+        document.getElementById('winScreen').classList.remove('hidden');
+      }, 1500);
+    }
+  }
+
+  // Speed boost timer
+  if (speedBoost > 0) speedBoost -= dt;
+
+  // Camera
+  const targetCamX = player.x - 200;
+  camera.x += (targetCamX - camera.x) * 0.1;
+  camera.x = Math.max(0, camera.x);
+
+  // Particles
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 0.2 * dt;
+    p.life -= dt;
+  });
+
+  // Frame animation
+  player.frameTimer += dt;
+  if (player.frameTimer > 8) { player.frame = (player.frame + 1) % 4; player.frameTimer = 0; }
+
+  // Flash msg
+  if (flashMsg.timer > 0) flashMsg.timer -= dt;
+
+  // Score trickle
+  score += 0.05 * dt;
+
+  updateHUD();
+  bgScroll += 0.4 * dt;
+}
+
+function rectsOverlap(a, b) {
+  return a.x + a.w - 4 > b.x + 4 &&
+         a.x + 4 < b.x + b.w - 4 &&
+         a.y + a.h - 4 > b.y + 4 &&
+         a.y + 4 < b.y + b.h - 4;
+}
+
+function collectPowerup(type) {
+  spawnParticles(player.x + 18, player.y, '#ffdd55', 12);
+  if (type === 'fuel') {
+    energy = Math.min(100, energy + 35);
+    score += 100;
+    showFlash('+35 COMBUSTIBLE ⚡', '#44ff88');
+  } else if (type === 'speed') {
+    speedBoost = 300;
+    score += 80;
+    showFlash('¡TURBO VELOCIDAD! 💨', '#ffaa00');
+  } else if (type === 'shield') {
+    shieldActive = true;
+    score += 80;
+    showFlash('¡ESCUDO ACTIVO! 🛡️', '#44aaff');
+  }
+}
+
+function loseLife(msg) {
+  if (invincible > 0) return;
+  lives--;
+  spawnParticles(player.x + 18, player.y + 20, '#ff4444', 20);
+  updateHUD();
+  if (lives <= 0) {
+    gameState = 'dead';
+    document.getElementById('deathMsg').textContent = msg + ' Puntuación: ' + Math.floor(score);
+    document.getElementById('deathScreen').classList.remove('hidden');
+  } else {
+    // Respawn
+    player.x = Math.max(50, camera.x + 100);
+    player.y = GROUND_Y - 80;
+    player.vx = 0; player.vy = 0;
+    invincible = 180;
+    showFlash('¡' + lives + ' vidas restantes! ' + msg, '#ff8888');
+  }
+}
+
+function showFlash(text, color) {
+  flashMsg = { text, color, timer: 120 };
+}
+
+function spawnParticles(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random()-0.5) * 5,
+      vy: -Math.random() * 5 - 1,
+      color,
+      life: 40 + Math.random()*30,
+      size: 3 + Math.random()*4
+    });
+  }
+}
+
+function updateHUD() {
+  document.getElementById('livesDisplay').textContent = '❤️'.repeat(lives);
+  document.getElementById('scoreDisplay').textContent = Math.floor(score);
+  document.getElementById('levelIndicator').textContent = 'NIVEL ' + (level+1) + ' — ' + LEVEL_CONFIGS[level].name;
+  const pct = Math.max(0, energy);
+  document.getElementById('energyFill').style.width = pct + '%';
+  const col = pct > 50 ? '#44ff88' : pct > 25 ? '#ffaa00' : '#ff4444';
+  document.getElementById('energyFill').style.background = `linear-gradient(90deg, ${col}, #ffffff44)`;
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  const cfg = LEVEL_CONFIGS[level];
+
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, cfg.bgColors[0]);
+  sky.addColorStop(1, cfg.bgColors[1]);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // BG decorations (clouds / stars)
+  drawBgDecorations(cfg);
+
+  ctx.save();
+  ctx.translate(-Math.floor(camera.x), 0);
+
+  // Ground & platforms
+  platforms.forEach(p => {
+    if (p.isGround) {
+      // Ground
+      const grd = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
+      grd.addColorStop(0, cfg.groundColor);
+      grd.addColorStop(1, '#111');
+      ctx.fillStyle = grd;
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      // Grass top
+      ctx.fillStyle = level === 2 ? '#5555bb' : '#5dc85d';
+      ctx.fillRect(p.x, p.y, p.w, 8);
+    } else {
+      ctx.fillStyle = '#8B5E3C';
+      roundRect(ctx, p.x, p.y, p.w, p.h, 6);
+      ctx.fillStyle = '#a0754a';
+      ctx.fillRect(p.x + 4, p.y, p.w - 8, 5);
+    }
+  });
+
+  // Pits (holes in ground) - draw dark pits
+  obstacles.forEach(o => {
+    if (o.type !== 'pit' || !o.alive) return;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    // Pit edge shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(o.x - 4, o.y, 8, 20);
+    ctx.fillRect(o.x + o.w - 4, o.y, 8, 20);
+  });
+
+  // Obstacles
+  obstacles.forEach(o => {
+    if (!o.alive) return;
+    if (o.type === 'rock') drawRock(o);
+    else if (o.type === 'spike') drawSpike(o);
+  });
+
+  // Powerups
+  powerups.forEach(p => {
+    if (!p.alive) return;
+    const bobY = Math.sin(p.bob) * 6;
+    drawPowerup(p.x, p.y + bobY, p.type);
+  });
+
+  // Goal
+  drawGoal();
+
+  // Player
+  drawPlayer();
+
+  ctx.restore();
+
+  // Particles (world space)
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life / 70;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x - camera.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Flash message
+  if (flashMsg.timer > 0) {
+    const alpha = Math.min(1, flashMsg.timer / 30);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = flashMsg.color;
+    ctx.font = 'bold 22px Fredoka One, cursive';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 8;
+    ctx.fillText(flashMsg.text, W/2, H/2 - 60);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
+  // Level complete banner
+  if (levelComplete) {
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, H/2 - 50, W, 80);
+    ctx.fillStyle = '#ffdd55';
+    ctx.font = 'bold 38px Fredoka One, cursive';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#ff8800';
+    ctx.shadowBlur = 16;
+    ctx.fillText(level < 2 ? '¡NIVEL COMPLETADO! 🎉' : '¡PARQUE CONQUISTADO! 🏆', W/2, H/2 + 4);
+    ctx.shadowBlur = 0;
+  }
+
+  // Progress bar
+  const prog = (player.x + camera.x) / LEVEL_LENGTH;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(10, H - 18, W - 20, 8);
+  ctx.fillStyle = '#ffdd55';
+  ctx.fillRect(10, H - 18, (W-20) * Math.min(1, prog), 8);
+  ctx.fillStyle = '#ff6600';
+  ctx.beginPath();
+  ctx.arc(10 + (W-20)*Math.min(1,prog), H-14, 5, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawBgDecorations(cfg) {
+  if (level === 2) {
+    // Stars
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    for (let i = 0; i < 30; i++) {
+      const sx = ((i * 137 + bgScroll * 0.1) % W);
+      const sy = (i * 97) % (H * 0.6);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.5, 0, Math.PI*2);
+      ctx.fill();
+    }
+    // Ferris wheel silhouette
+    ctx.strokeStyle = 'rgba(150,100,255,0.3)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(W*0.8, H*0.35, 60, 0, Math.PI*2);
+    ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = (i/8)*Math.PI*2 + bgScroll*0.005;
+      ctx.beginPath();
+      ctx.moveTo(W*0.8, H*0.35);
+      ctx.lineTo(W*0.8 + Math.cos(a)*60, H*0.35 + Math.sin(a)*60);
+      ctx.stroke();
+    }
+  } else {
+    // Clouds
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    [[100,60,60],[250,40,40],[500,70,55],[650,45,35],[720,80,60]].forEach(([cx,cy,r]) => {
+      const x = ((cx - bgScroll * 0.2) % (W + 100));
+      ctx.beginPath();
+      ctx.arc(x, cy, r, 0, Math.PI*2);
+      ctx.arc(x+r*0.6, cy-8, r*0.7, 0, Math.PI*2);
+      ctx.arc(x-r*0.5, cy+4, r*0.6, 0, Math.PI*2);
+      ctx.fill();
+    });
+    // Trees
+    if (level === 0) {
+      ctx.fillStyle = 'rgba(34,100,34,0.4)';
+      [150, 380, 600, 750].forEach(tx => {
+        const x = tx;
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y);
+        ctx.lineTo(x-22, GROUND_Y - 60);
+        ctx.lineTo(x+22, GROUND_Y - 60);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y - 50);
+        ctx.lineTo(x-18, GROUND_Y - 100);
+        ctx.lineTo(x+18, GROUND_Y - 100);
+        ctx.fill();
+      });
+    }
+    // Carousel silhouette
+    if (level === 1) {
+      ctx.fillStyle = 'rgba(200,100,200,0.25)';
+      ctx.beginPath();
+      ctx.arc(W*0.15, H*0.5, 40, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(200,100,200,0.3)';
+      ctx.lineWidth = 2;
+      for (let i=0;i<6;i++){
+        const a=(i/6)*Math.PI*2+bgScroll*0.01;
+        ctx.beginPath();
+        ctx.moveTo(W*0.15,H*0.5);
+        ctx.lineTo(W*0.15+Math.cos(a)*40,H*0.5+Math.sin(a)*40);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawRock(o) {
+  ctx.fillStyle = '#888';
+  ctx.beginPath();
+  ctx.ellipse(o.x + o.w/2, o.y + o.h/2, o.w/2, o.h/2, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#aaa';
+  ctx.beginPath();
+  ctx.ellipse(o.x + o.w/2 - 4, o.y + o.h/2 - 4, o.w/4, o.h/4, 0, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawSpike(o) {
+  ctx.fillStyle = '#cc2222';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(o.x + i*12, o.y + o.h);
+    ctx.lineTo(o.x + i*12 + 6, o.y);
+    ctx.lineTo(o.x + i*12 + 12, o.y + o.h);
+    ctx.fill();
+  }
+  // Shine
+  ctx.fillStyle = 'rgba(255,100,100,0.5)';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(o.x + i*12 + 4, o.y + o.h);
+    ctx.lineTo(o.x + i*12 + 6, o.y + 6);
+    ctx.lineTo(o.x + i*12 + 8, o.y + o.h);
+    ctx.fill();
+  }
+}
+
+function drawPowerup(x, y, type) {
+  ctx.save();
+  ctx.shadowBlur = 12;
+  if (type === 'fuel') {
+    ctx.shadowColor = '#44ff88';
+    ctx.fillStyle = '#44ff88';
+    ctx.beginPath();
+    ctx.arc(x + 14, y + 14, 12, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡', x+14, y+19);
+  } else if (type === 'speed') {
+    ctx.shadowColor = '#ffaa00';
+    ctx.fillStyle = '#ffaa00';
+    ctx.beginPath();
+    ctx.arc(x + 14, y + 14, 12, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('💨', x+14, y+19);
+  } else {
+    ctx.shadowColor = '#44aaff';
+    ctx.fillStyle = '#44aaff';
+    ctx.beginPath();
+    ctx.arc(x + 14, y + 14, 12, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🛡️', x+14, y+19);
+  }
+  ctx.restore();
+}
+
+function drawGoal() {
+  const g = goal;
+  // Flag pole
+  ctx.fillStyle = '#888';
+  ctx.fillRect(g.x + 20, g.y, 6, g.h);
+  // Flag
+  const flagAnim = Math.sin(Date.now() * 0.005) * 5;
+  ctx.fillStyle = '#ffdd00';
+  ctx.beginPath();
+  ctx.moveTo(g.x + 26, g.y);
+  ctx.lineTo(g.x + 26 + 28 + flagAnim, g.y + 16);
+  ctx.lineTo(g.x + 26, g.y + 32);
+  ctx.fill();
+  // Glow
+  ctx.shadowColor = '#ffdd00';
+  ctx.shadowBlur = 20;
+  ctx.strokeStyle = '#ffdd00';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(g.x, g.y, g.w, g.h);
+  ctx.shadowBlur = 0;
+  // Label
+  ctx.fillStyle = '#ffdd55';
+  ctx.font = 'bold 12px Fredoka One, cursive';
+  ctx.textAlign = 'center';
+  ctx.fillText('META', g.x + 25, g.y - 8);
+}
+
+function drawPlayer() {
+  const p = player;
+  const cx = p.x + p.w/2;
+  const cy = p.y + p.h/2;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(p.facing, 1);
+
+  // Invincible flash
+  if (invincible > 0 && Math.floor(invincible / 8) % 2 === 0) {
+    ctx.globalAlpha = 0.4;
+  }
+
+  // Shield glow
+  if (shieldActive) {
+    ctx.shadowColor = '#44aaff';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = 'rgba(68,170,255,0.6)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 26, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // Speed boost trail
+  if (speedBoost > 0) {
+    ctx.globalAlpha = (ctx.globalAlpha * 0.6);
+    ctx.fillStyle = '#ff8800';
+    ctx.beginPath();
+    ctx.ellipse(-18, 2, 14, 7, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = invincible > 0 && Math.floor(invincible/8)%2===0 ? 0.4 : 1;
+  }
+
+  // Body - little park visitor character
+  // Legs
+  const legOff = p.onGround ? Math.sin(p.frame * Math.PI/2) * 5 : 0;
+  ctx.fillStyle = '#3366cc';
+  ctx.fillRect(-9, 8, 8, 14 + legOff);
+  ctx.fillRect(1, 8, 8, 14 - legOff);
+  // Shoes
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-10, 20 + legOff, 10, 5);
+  ctx.fillRect(0, 20 - legOff, 10, 5);
+  // Torso
+  ctx.fillStyle = level === 0 ? '#ff6633' : level === 1 ? '#cc44cc' : '#3388ff';
+  roundRect(ctx, -10, -8, 20, 18, 4);
+  ctx.fill();
+  // Arms
+  const armSwing = p.onGround ? Math.sin(p.frame * Math.PI/2) * 8 : 10;
+  ctx.fillStyle = '#ffcc99';
+  ctx.save();
+  ctx.translate(-10, -4);
+  ctx.rotate((-0.3 - armSwing*0.03) * Math.PI);
+  ctx.fillRect(-3, 0, 6, 12);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(10, -4);
+  ctx.rotate((0.3 + armSwing*0.03) * Math.PI);
+  ctx.fillRect(-3, 0, 6, 12);
+  ctx.restore();
+  // Head
+  ctx.fillStyle = '#ffcc99';
+  ctx.beginPath();
+  ctx.arc(0, -14, 11, 0, Math.PI*2);
+  ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(4, -16, 2.5, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(5, -17, 1, 0, Math.PI*2);
+  ctx.fill();
+  // Smile
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, -12, 5, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+  // Hat
+  ctx.fillStyle = level === 0 ? '#cc2222' : level === 1 ? '#8822cc' : '#ffcc00';
+  ctx.beginPath();
+  ctx.ellipse(0, -24, 9, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillRect(-6, -36, 12, 14);
+
+  ctx.restore();
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x+r, y);
+  c.lineTo(x+w-r, y);
+  c.quadraticCurveTo(x+w, y, x+w, y+r);
+  c.lineTo(x+w, y+h-r);
+  c.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  c.lineTo(x+r, y+h);
+  c.quadraticCurveTo(x, y+h, x, y+h-r);
+  c.lineTo(x, y+r);
+  c.quadraticCurveTo(x, y, x+r, y);
+  c.closePath();
+}
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+// Draw something on canvas behind start screen
+(function drawStartBg() {
+  const sky = ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#87CEEB');
+  sky.addColorStop(1,'#98FB98');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0,0,W,H);
+})();
+</script>
+</body>
+</html>
